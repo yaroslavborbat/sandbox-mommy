@@ -36,6 +36,7 @@ func SetupController(mgr ctrl.Manager, log *slog.Logger) error {
 	if err := builder.WebhookManagedBy(mgr).
 		For(&v1alpha1.Sandbox{}).
 		WithValidator(NewValidator(log)).
+		WithDefaulter(NewDefaulter(log)).
 		Complete(); err != nil {
 		return err
 	}

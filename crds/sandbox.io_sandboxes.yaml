@@ -6464,11 +6464,8 @@ spec:
                 - message: .spec is immutable
                   rule: self == oldSelf
               ttl:
-                default: 60m
                 format: duration
                 type: string
-            required:
-            - ttl
             type: object
             x-kubernetes-validations:
             - message: Either template or templateSpec must be specified

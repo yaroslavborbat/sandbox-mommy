@@ -2,6 +2,7 @@ package create
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,6 +23,7 @@ const (
 
 type create struct {
 	template string
+	ttl      time.Duration
 	print    bool
 }
 
@@ -38,6 +40,7 @@ func NewCreateSandboxCommand() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&c.template, "template", "t", "", "Template name")
+	cmd.Flags().DurationVarP(&c.ttl, "ttl", "l", 1*time.Hour, "Sandbox TTL")
 	cmd.Flags().BoolVarP(&c.print, "print", "p", false, "Print the created sandbox")
 	common.SetDryRun(cmd.Flags())
 
@@ -56,7 +59,7 @@ func (c *create) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	sandbox := newSandbox(name, namespace, c.template)
+	sandbox := newSandbox(name, namespace, c.template, c.ttl)
 
 	opts := metav1.CreateOptions{
 		DryRun: common.GetDryRun(),
@@ -81,7 +84,7 @@ func (c *create) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func newSandbox(name, namespace, template string) *v1alpha1.Sandbox {
+func newSandbox(name, namespace, template string, ttl time.Duration) *v1alpha1.Sandbox {
 	return &v1alpha1.Sandbox{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       v1alpha1.SandboxKind,
@@ -93,6 +96,9 @@ func newSandbox(name, namespace, template string) *v1alpha1.Sandbox {
 		},
 		Spec: v1alpha1.SandboxSpec{
 			Template: template,
+			TTL: &metav1.Duration{
+				Duration: ttl,
+			},
 		},
 	}
 }

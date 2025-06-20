@@ -40,15 +40,15 @@ func (p DVPSandboxer) Create(ctx context.Context, sandbox *v1alpha1.Sandbox, tem
 		return err
 	}
 	existVDMap := make(map[client.ObjectKey]struct{})
-	for _, pvc := range existingVDs {
-		existVDMap[client.ObjectKeyFromObject(pvc)] = struct{}{}
+	for _, vd := range existingVDs {
+		existVDMap[client.ObjectKeyFromObject(vd)] = struct{}{}
 	}
-	for _, pvc := range vdsForCreate {
-		if _, exist := existVDMap[client.ObjectKeyFromObject(pvc)]; exist {
+	for _, vd := range vdsForCreate {
+		if _, exist := existVDMap[client.ObjectKeyFromObject(vd)]; exist {
 			continue
 		}
-		if err = p.client.Create(ctx, pvc); err != nil {
-			return fmt.Errorf("failed to create pvc %q", client.ObjectKeyFromObject(pvc).String())
+		if err = p.client.Create(ctx, vd); err != nil {
+			return fmt.Errorf("failed to create pvc %q", client.ObjectKeyFromObject(vd).String())
 		}
 	}
 
@@ -202,9 +202,9 @@ func mutateDVPVMVolumes(sandbox *v1alpha1.Sandbox, vm *dvpcorev1alpha2.VirtualMa
 		vdsMap[vd.Name] = struct{}{}
 	}
 
-	for i, disk := range vm.Spec.BlockDeviceRefs {
-		if disk.Kind == dvpcorev1alpha2.VirtualDiskKind {
-			fullName := getFullVDName(disk.Name, sandbox)
+	for i, ref := range vm.Spec.BlockDeviceRefs {
+		if ref.Kind == dvpcorev1alpha2.VirtualDiskKind {
+			fullName := getFullVDName(ref.Name, sandbox)
 			if _, ok := vdsMap[fullName]; ok {
 				vm.Spec.BlockDeviceRefs[i].Name = fullName
 			}

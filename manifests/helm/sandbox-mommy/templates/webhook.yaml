@@ -50,9 +50,38 @@ webhooks:
       service:
         namespace: {{ .Release.Namespace }}
         name: sandbox-controller
-        path: /validate-sandbox-io-v1alpha1-sandbox
+        path: /validate-sandbox-io-v1alpha1-sandboxtemplate
         port: 443
       caBundle: |
         {{ $ca.Cert | b64enc }}
     admissionReviewVersions: ["v1"]
     sideEffects: None
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  labels:
+    {{ include "sandbox-mommy.labels" . | nindent 4 }}
+    {{ include "sandbox-controller.componentLabel" . | nindent 4 }}
+  name: "sandbox-controller-mutating-webhook"
+webhooks:
+  - name: "sandbox.sandbox.io.default"
+    rules:
+      - apiGroups:   ["sandbox.io"]
+        apiVersions: ["v1alpha1"]
+        operations:  ["CREATE"]
+        resources:   ["sandboxes"]
+        scope:       "Namespaced"
+    clientConfig:
+      service:
+        namespace: {{ .Release.Namespace }}
+        name: sandbox-controller
+        path: /mutate-sandbox-io-v1alpha1-sandbox
+        port: 443
+      caBundle: |
+        {{ $ca.Cert | b64enc }}
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
+    failurePolicy: Fail
+    reinvocationPolicy: Never
+    matchPolicy: Exact

@@ -34,10 +34,8 @@ type SandboxSpec struct {
 	// TemplateSpec is the spec of the sandbox template.
 	TemplateSpec *SandboxTemplateSpec `json:"templateSpec,omitempty"`
 	// TTL is the time after which the sandbox will be automatically deleted
-	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Format=duration
-	// +kubebuilder:default:="60m"
-	TTL metav1.Duration `json:"ttl"`
+	TTL metav1.Duration `json:"ttl,omitempty"`
 }
 
 type SandboxStatus struct {

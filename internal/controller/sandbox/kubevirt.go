@@ -41,20 +41,20 @@ func (p KubevirtSandboxer) Create(ctx context.Context, sandbox *v1alpha1.Sandbox
 	}
 
 	dvsForCreate := makeDataVolumes(sandbox, templateSpec)
-	existingVDs, err := p.getDVs(ctx, sandbox)
+	existingDVs, err := p.getDVs(ctx, sandbox)
 	if err != nil {
 		return err
 	}
 	existDVMap := make(map[client.ObjectKey]struct{})
-	for _, pvc := range existingVDs {
-		existDVMap[client.ObjectKeyFromObject(pvc)] = struct{}{}
+	for _, dv := range existingDVs {
+		existDVMap[client.ObjectKeyFromObject(dv)] = struct{}{}
 	}
-	for _, pvc := range dvsForCreate {
-		if _, exist := existDVMap[client.ObjectKeyFromObject(pvc)]; exist {
+	for _, dv := range dvsForCreate {
+		if _, exist := existDVMap[client.ObjectKeyFromObject(dv)]; exist {
 			continue
 		}
-		if err = p.client.Create(ctx, pvc); err != nil {
-			return fmt.Errorf("failed to create data volume %q", client.ObjectKeyFromObject(pvc).String())
+		if err = p.client.Create(ctx, dv); err != nil {
+			return fmt.Errorf("failed to create data volume %q", client.ObjectKeyFromObject(dv).String())
 		}
 	}
 
@@ -170,23 +170,6 @@ func (p KubevirtSandboxer) getDVs(ctx context.Context, sandbox *v1alpha1.Sandbox
 	for _, dv := range dvs.Items {
 		if metav1.IsControlledBy(&dv, sandbox) {
 			result = append(result, &dv)
-		}
-	}
-
-	return result, nil
-}
-
-func (p KubevirtSandboxer) getPVCs(ctx context.Context, sandbox *v1alpha1.Sandbox) ([]*corev1.PersistentVolumeClaim, error) {
-	pvcs := &corev1.PersistentVolumeClaimList{}
-	err := p.client.List(ctx, pvcs, client.InNamespace(sandbox.GetNamespace()))
-	if err != nil {
-		return nil, fmt.Errorf("failed to list PVCs %w", err)
-	}
-
-	var result []*corev1.PersistentVolumeClaim
-	for _, pvc := range pvcs.Items {
-		if metav1.IsControlledBy(&pvc, sandbox) {
-			result = append(result, &pvc)
 		}
 	}
 

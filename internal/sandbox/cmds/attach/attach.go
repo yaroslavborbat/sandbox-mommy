@@ -93,7 +93,8 @@ func (a *attach) Run(cmd *cobra.Command, args []string) error {
 	}
 }
 
-func connect(name string, namespace string, client kubeclient.Client) error {
+func connect(name string, namespace string, client kubeclient.Client,
+) error {
 	stdinReader, stdinWriter := io.Pipe()
 	stdoutReader, stdoutWriter := io.Pipe()
 
