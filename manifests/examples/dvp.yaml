@@ -1,0 +1,72 @@
+---
+apiVersion: v1
+data:
+  userData: |
+    I2Nsb3VkLWNvbmZpZwpwYWNrYWdlX3VwZGF0ZTogdHJ1ZQoKdXNlcnM6CiAgLSBuYW1lOiBjbG91
+    ZAogICAgcGFzc3dkOiAkNiRyb3VuZHM9NDA5NiR2bG4vLmFQSEJPSTdCTVlSJGJCTWtxUXZ1R3M1
+    R3lkLzFINURQNG05SGpRU3kua2dyeHBhR0VId2tYN0tFRlY4QlMuSFpXUGl0QXRaMlZkOFpxSVpS
+    cW1seWtSQ2FnVGdQZWp0MWkuCiAgICBzaGVsbDogL2Jpbi9iYXNoCiAgICBzdWRvOiBBTEw9KEFM
+    TCkgTk9QQVNTV0Q6QUxMCiAgICBjaHBhc3N3ZDogeyBleHBpcmU6IEZhbHNlIH0KICAgIGxvY2tf
+    cGFzc3dkOiBmYWxzZQoKZmluYWxfbWVzc2FnZTogIvCflKXwn5Sl8J+UpSBUaGUgc3lzdGVtIGlz
+    IGZpbmFsbHkgdXAsIGFmdGVyICRVUFRJTUUgc2Vjb25kcyDwn5Sl8J+UpfCflKUiCg==
+kind: Secret
+metadata:
+  name: cloud-init-ubuntu
+type: provisioning.virtualization.deckhouse.io/cloud-init
+---
+apiVersion: virtualization.deckhouse.io/v1alpha2
+kind: ClusterVirtualImage
+metadata:
+  name: ubuntu-jammy
+spec:
+  dataSource:
+    containerImage:
+      image: yaroslavborbat/containerdisk:ubuntu-jammy
+    type: ContainerImage
+---
+apiVersion: sandbox.io/v1alpha1
+kind: SandboxTemplate
+metadata:
+  name: vm-ubuntu
+spec:
+  dvpVMSpec:
+    virtualMachineClassName: generic
+    blockDeviceRefs:
+      - kind: VirtualDisk
+        name: root
+      - kind: VirtualDisk
+        name: blank
+    cpu:
+      coreFraction: 100%
+      cores: 1
+    memory:
+      size: 1Gi
+    provisioning:
+      type: UserDataRef
+      userDataRef:
+        kind: Secret
+        name: cloud-init-ubuntu
+    runPolicy: AlwaysOnUnlessStoppedManually
+    terminationGracePeriodSeconds: 10
+  volumes:
+    - name: root
+      virtualDiskSpec:
+        dataSource:
+          objectRef:
+            kind: ClusterVirtualImage
+            name: ubuntu-2024-bunch
+          type: ObjectRef
+        persistentVolumeClaim:
+          size: 3G
+    - name: blank
+      virtualDiskSpec:
+        persistentVolumeClaim:
+          size: 1G
+---
+apiVersion: sandbox.io/v1alpha1
+kind: Sandbox
+metadata:
+  name: ubuntu-01
+spec:
+  template: vm-ubuntu
+  ttl: 24h

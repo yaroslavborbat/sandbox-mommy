@@ -1,0 +1,30 @@
+version: 3
+
+tasks:
+  generate:core:
+    desc: "Regenerate code for core components."
+    deps:
+      - tidy
+    cmd: ./hack/update-codegen.sh core
+
+  generate:subresources:
+    desc: "Regenerate code for subresources components."
+    deps:
+      - tidy
+    cmd: ./hack/update-codegen.sh subresources
+  generate:crds:
+    desc: "Regenerate crds"
+    deps:
+      - tidy
+    cmd: ./hack/update-codegen.sh crds
+
+  generate:
+    desc: "Regenerate all"
+    deps:
+      - tidy
+    cmd: ./hack/update-codegen.sh all
+
+  tidy:
+    desc: "Run go mod tidy"
+    cmds:
+      - go mod tidy

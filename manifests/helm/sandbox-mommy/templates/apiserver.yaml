@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sandbox-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{ include "sandbox-mommy.labels" . | nindent 4 }}
+    {{ include "sandbox-api.componentLabel" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{ include "sandbox-mommy.labels" . | nindent 6 }}
+      {{ include "sandbox-api.componentLabel" . | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        {{ include "sandbox-mommy.labels" . | nindent 8 }}
+        {{ include "sandbox-api.componentLabel" . | nindent 8 }}
+    spec:
+      containers:
+        - name: sandbox-api
+          args:
+            - --secure-port=8443
+            - --v=10
+            - --tls-cert-file=/etc/sandbox-api/certificates/tls.crt
+            - --tls-private-key-file=/etc/sandbox-api/certificates/tls.key
+            - --secure-port=8443
+            - --service-account-name=sandbox-api
+            - --service-account-namespace={{ .Release.Namespace }}
+            {{- range $gate, $enabled := .Values.featureGates }}
+            {{- if $enabled }}
+            - --feature-gate={{ $gate }}
+            {{- end }}
+            {{- end }}
+          image: {{ .Values.images.apiserver }}
+          imagePullPolicy: Always
+          volumeMounts:
+            - mountPath: /etc/sandbox-api/certificates
+              name: sandbox-api-tls
+              readOnly: true
+          ports:
+            - containerPort: 8443
+              name: apiserver
+              protocol: TCP
+          resources:
+            requests:
+              ephemeral-storage: 50Mi
+      securityContext:
+        fsGroup: 64535
+        runAsGroup: 64535
+        runAsNonRoot: true
+        runAsUser: 64535
+      serviceAccountName: sandbox-api
+      volumes:
+        - name: sandbox-api-tls
+          secret:
+            defaultMode: 420
+            optional: true
+            secretName: sandbox-api-tls

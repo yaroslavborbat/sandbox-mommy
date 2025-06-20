@@ -1,0 +1,34 @@
+{{- $ca := genCA "sandbox-api CA" 365 }}
+{{- $CN := (include "sandbox-api.serviceFQDN" .) }}
+{{- $cert := genSignedCert $CN (list "127.0.0.1") (list "localhost" $CN) 365 $ca }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sandbox-api-tls
+  labels:
+    {{- include "sandbox-mommy.labels" . | nindent 4 }}
+type: kubernetes.io/tls
+data:
+  ca.crt: {{ $ca.Cert | b64enc | quote }}
+  tls.crt: {{ $cert.Cert | b64enc | quote }}
+  tls.key: {{ $cert.Key | b64enc | quote }}
+
+---
+
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1alpha1.subresources.sandbox.io
+  labels:
+    {{- include "sandbox-mommy.labels" . | nindent 4 }}
+    {{- include "sandbox-api.componentLabel" . | nindent 4 }}
+spec:
+  caBundle: {{ $ca.Cert | b64enc | quote }}
+  group: subresources.sandbox.io
+  groupPriorityMinimum: 1000
+  service:
+    name: sandbox-api
+    namespace: {{ .Release.Namespace }}
+    port: 443
+  version: v1alpha1
+  versionPriority: 15

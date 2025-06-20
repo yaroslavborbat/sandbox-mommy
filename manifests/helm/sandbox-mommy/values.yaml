@@ -1,0 +1,10 @@
+nameOverride: ""
+fullnameOverride: ""
+
+images:
+  apiserver: yaroslavborbat/sandbox-mommy:apiserver-v0.1.0
+  controller:  yaroslavborbat/sandbox-mommy:controller-v0.1.0
+
+featureGates:
+  DVP: false
+  KUBEVIRT: false

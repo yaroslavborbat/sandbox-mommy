@@ -1,0 +1,166 @@
+version: 3
+
+includes:
+  api:
+    taskfile: ./api/
+    dir: ./api/
+
+vars:
+  IMAGE_APISERVER: yaroslavborbat/sandbox-mommy:apiserver-v0.1.0
+  IMAGE_CONTROLLER: yaroslavborbat/sandbox-mommy:controller-v0.1.0
+
+  DOCKERFILE_CONTROLLER: "./controller.Dockerfile"
+  DOCKERFILE_CONTROLLER_DEBUG: "./dlv.controller.Dockerfile"
+  DOCKERFILE_APISERVER: "./apiserver.Dockerfile"
+  DOCKERFILE_APISERVER_DEBUG: "./dlv.apiserver.Dockerfile"
+
+  DLV_IMAGE:
+    sh: if [ -z $DLV_IMAGE ]; then echo "ttl.sh/$(uuidgen | awk '{print tolower($0)}'):10m" ; else echo $DLV_IMAGE ; fi
+
+tasks:
+  go:tidy:
+    desc: "Run go mod tidy"
+    cmds:
+      - go mod tidy
+
+  go:build:controller:
+    desc: "Go build sandbox-controller"
+    cmds:
+      - mkdir -p bin
+      - go build -o bin/sandbox-controller cmd/controller/main.go
+
+  go:build:sandbox:
+    desc: "Go build sandbox"
+    cmds:
+      - mkdir -p bin
+      - go build -o bin/sandbox cmd/sandbox/main.go
+
+  install:sandbox:
+    desc: "Install sandbox cli"
+    cmds:
+      - task: go:build:sandbox
+      - cp bin/sandbox $HOME/.local/bin/sandbox
+      - ln -f -s $HOME/.local/bin/sandbox $HOME/.local/bin/kubectl-sandbox
+
+  docker:build:controller:
+    desc: "Docker build sandbox-controller"
+    cmds:
+      - docker build -t {{ .IMAGE_CONTROLLER }} -f {{ .DOCKERFILE_CONTROLLER }} .
+
+  docker:push:controller:
+    desc: "Docker push sandbox-controller"
+    cmds:
+      - docker push {{ .IMAGE_CONTROLLER }}
+
+  docker:build-push:controller:
+    desc: "Docker build and push sandbox-controller"
+    cmds:
+      - task: docker:build:controller
+      - task: docker:push:controller
+
+  docker:build:apiserver:
+    desc: "Docker build sandbox-api"
+    cmds:
+      - docker build -t {{ .IMAGE_APISERVER }} -f {{ .DOCKERFILE_APISERVER }} .
+
+  docker:push:apiserver:
+    desc: "Docker push sandbox-api"
+    cmds:
+      - docker push {{ .IMAGE_APISERVER }}
+
+  docker:build-push:apiserver:
+    desc: "Docker build and push sandbox-api"
+    cmds:
+      - task: docker:build:apiserver
+      - task: docker:push:apiserver
+
+  docker:build:all:
+    desc: "Docker build all"
+    cmds:
+      - task: docker:build:controller
+      - task: docker:build:apiserver
+
+  docker:push:all:
+    desc: "Docker push all"
+    cmds:
+      - task: docker:push:controller
+      - task: docker:push:apiserver
+
+  docker:build-push:all:
+    desc: "Docker build and push all"
+    cmds:
+      - task: docker:build:all
+      - task: docker:push:all
+
+  install:
+    desc: "Deploy helm chart. Set env vars WITH_DVP and WITH_KUBEVIRT to enable features"
+    cmds:
+      - kubectl apply -f ./crds/
+      - helm upgrade --install sandbox-mommy ./manifests/helm/sandbox-mommy -f ./manifests/helm/sandbox-mommy/values.yaml -n sandbox-mommy --create-namespace --set featureGates.DVP=$WITH_DVP --set featureGates.KUBEVIRT=$WITH_KUBEVIRT
+
+  uninstall:
+    desc: "Uninstall helm chart"
+    cmds:
+      - helm uninstall sandbox-mommy -n sandbox-mommy
+      - kubectl delete namespace sandbox-mommy
+      - kubectl delete -f ./crds/
+
+
+  dlv:sandbox-controller:build-push:
+    desc: "Build and Push image sandbox-controller with dlv"
+    cmds:
+      - docker build -f {{ .DOCKERFILE_CONTROLLER_DEBUG }} -t "{{ .DLV_IMAGE }}" .
+      - docker push "{{ .DLV_IMAGE }}"
+      - task: dlv:sandbox-controller:print
+
+  dlv:sandbox-controller:print:
+    desc: "Print commands for debug"
+    env:
+      IMAGE: "{{ .DLV_IMAGE }}"
+    cmd: |
+      cat <<EOF
+      kubectl -n sandbox-mommy patch deploy sandbox-controller --type='strategic' -p '{
+        "spec": {
+          "template": {
+            "spec": {
+              "containers": [ {
+                "name": "sandbox-controller",
+                "image": "${IMAGE}",
+                "ports": [ { "containerPort": 2345, "name": "dlv" } ]
+              }]
+            }
+          }
+        }
+      }'
+      kubectl -n sandbox-mommy patch deploy sandbox-controller --type='json' -p='[{"op": "add","path": "/spec/template/spec/containers/0/args/-","value": "--leader-election=false"}]'
+      kubectl -n sandbox-mommy  port-forward deploy/sandbox-controller 2345:2345
+      EOF
+
+  dlv:sandbox-api:build-push:
+    desc: "Build and Push image sandbox-api with dlv"
+    cmds:
+      - docker build -f {{ .DOCKERFILE_APISERVER_DEBUG }} -t "{{ .DLV_IMAGE }}" .
+      - docker push "{{ .DLV_IMAGE }}"
+      - task: dlv:sandbox-api:print
+
+  dlv:sandbox-api:print:
+    desc: "Print commands for debug"
+    env:
+      IMAGE: "{{ .DLV_IMAGE }}"
+    cmd: |
+      cat <<EOF
+      kubectl -n sandbox-mommy patch deploy sandbox-api --type='strategic' -p '{
+        "spec": {
+          "template": {
+            "spec": {
+              "containers": [ {
+                "name": "sandbox-api",
+                "image": "${IMAGE}",
+                "ports": [ { "containerPort": 2345, "name": "dlv" } ]
+              }]
+            }
+          }
+        }
+      }'
+      kubectl -n sandbox-mommy  port-forward deploy/sandbox-api 2345:2345
+      EOF

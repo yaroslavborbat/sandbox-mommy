@@ -1,0 +1,20 @@
+apiVersion: sandbox.io/v1alpha1
+kind: SandboxTemplate
+metadata:
+  name: pod-ubuntu
+spec:
+  podSpec:
+    containers:
+      - name: ubuntu
+        image: ubuntu
+        ports:
+          - containerPort: 80
+        command: ["/bin/bash", "-c", "while true; do sleep 1; done"]
+
+---
+apiVersion: sandbox.io/v1alpha1
+kind: Sandbox
+metadata:
+  name: ubuntu-00
+spec:
+  template: pod-ubuntu

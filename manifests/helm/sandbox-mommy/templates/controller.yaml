@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sandbox-controller
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{ include "sandbox-mommy.labels" . | nindent 4 }}
+    {{ include "sandbox-controller.componentLabel" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{ include "sandbox-mommy.labels" . | nindent 6 }}
+      {{ include "sandbox-controller.componentLabel" . | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        {{ include "sandbox-mommy.labels" . | nindent 8 }}
+        {{ include "sandbox-controller.componentLabel" . | nindent 8 }}
+    spec:
+      containers:
+        - name: sandbox-controller
+          image: {{ .Values.images.controller }}
+          args:
+            - --log-level=debug
+          {{- range $gate, $enabled := .Values.featureGates }}
+          {{- if $enabled }}
+            - --feature-gate={{ $gate }}
+          {{- end }}
+          {{- end }}
+          ports:
+            - containerPort: 9443
+              name: controller
+              protocol: TCP
+          imagePullPolicy: Always
+          volumeMounts:
+            - mountPath: /tmp/k8s-webhook-server/serving-certs
+              name: admission-webhook-secret
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /
+              port: https
+              scheme: HTTPS
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            requests:
+              ephemeral-storage: 50Mi
+      securityContext:
+        fsGroup: 64535
+        runAsGroup: 64535
+        runAsNonRoot: true
+        runAsUser: 64535
+      serviceAccountName: sandbox-controller
+      volumes:
+        - name: admission-webhook-secret
+          secret:
+            secretName: sandbox-controller-tls

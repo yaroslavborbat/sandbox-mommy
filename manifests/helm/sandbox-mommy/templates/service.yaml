@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sandbox-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sandbox-mommy.labels" . | nindent 4 }}
+    {{- include "sandbox-api.componentLabel" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 443
+      targetPort: apiserver
+      protocol: TCP
+      name: https
+  selector:
+    {{- include "sandbox-mommy.selectorLabels" . | nindent 4 }}
+    {{- include "sandbox-api.componentLabel" . | nindent 4 }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sandbox-controller
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sandbox-mommy.labels" . | nindent 4 }}
+    {{- include "sandbox-controller.componentLabel" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 443
+      targetPort: controller
+      protocol: TCP
+      name: https
+  selector:
+    {{- include "sandbox-mommy.selectorLabels" . | nindent 4 }}
+    {{- include "sandbox-controller.componentLabel" . | nindent 4 }}

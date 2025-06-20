@@ -1,0 +1,19 @@
+apiVersion: sandbox.io/v1alpha1
+kind: SandboxTemplate
+metadata:
+  name: pod-nginx
+spec:
+  podSpec:
+    containers:
+      - name: nginx
+        image: nginx
+        ports:
+          - containerPort: 80
+
+---
+apiVersion: sandbox.io/v1alpha1
+kind: Sandbox
+metadata:
+  name: nginx-00
+spec:
+  template: pod-nginx
